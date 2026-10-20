@@ -1,0 +1,78 @@
+export const PLANETS = [
+  {
+    id: "mercury",
+    name: "Sao Thủy",
+    color: "#aca49a",
+    size: 10,
+    orbit: 16,
+    period: 90,
+    phase: 20,
+  },
+  {
+    id: "venus",
+    name: "Sao Kim",
+    color: "#e9c58d",
+    size: 15,
+    orbit: 25,
+    period: 130,
+    phase: 155,
+  },
+  {
+    id: "earth",
+    name: "Trái Đất",
+    color: "#70b9d9",
+    size: 18,
+    orbit: 35,
+    period: 180,
+    phase: 280,
+  },
+  {
+    id: "mars",
+    name: "Sao Hỏa",
+    color: "#c77c63",
+    size: 13,
+    orbit: 45,
+    period: 230,
+    phase: 65,
+  },
+  {
+    id: "jupiter",
+    name: "Sao Mộc",
+    color: "#cda985",
+    size: 30,
+    orbit: 57,
+    period: 310,
+    phase: 200,
+  },
+  {
+    id: "saturn",
+    name: "Sao Thổ",
+    color: "#d5bc8b",
+    size: 24,
+    orbit: 70,
+    period: 400,
+    phase: 320,
+  },
+  {
+    id: "uranus",
+    name: "Sao Thiên Vương",
+    color: "#97cccf",
+    size: 19,
+    orbit: 83,
+    period: 470,
+    phase: 110,
+  },
+  {
+    id: "neptune",
+    name: "Sao Hải Vương",
+    color: "#718bc8",
+    size: 18,
+    orbit: 96,
+    period: 540,
+    phase: 235,
+  },
+] as const;
+
+export type PlanetId = (typeof PLANETS)[number]["id"];
+export const PLANET_IDS = PLANETS.map((planet) => planet.id);
+export const DEFAULT_PLANET_ID: PlanetId = "earth";
