@@ -1004,6 +1004,30 @@ export default function CosmicApp() {
                     <div className="section-title">
                       <Users size={23} />
                       {group.locked && <LockKeyhole size={15} />}
+                      {state.user?.id === group.ownerId && (
+                        <button
+                          className="text-danger"
+                          disabled={busy}
+                          onClick={async () => {
+                            if (
+                              !confirm(
+                                `Xóa nhóm “${group.name}”? Không thể khôi phục nhóm. Tâm tư của mọi thành viên sẽ được giữ lại và chuyển về riêng tư, chỉ tác giả xem được.`,
+                              )
+                            )
+                              return;
+                            if (await act("group.delete", { id: group.id })) {
+                              setComposeGroup("");
+                              setEntry(null);
+                              setToast(
+                                "Đã xóa nhóm. Tâm tư của mọi thành viên đã được giữ lại và chuyển về riêng tư.",
+                              );
+                            }
+                          }}
+                        >
+                          <Trash2 size={14} />
+                          Xóa nhóm
+                        </button>
+                      )}
                     </div>
                     <h3>{group.name}</h3>
                     <p className="muted">

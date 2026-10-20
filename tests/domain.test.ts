@@ -55,13 +55,14 @@ function sendFive(user: User) {
   }
 }
 function entry(user: User, visibility = "private", extras = {}) {
+  const existing = new Set(getState(user).entries.map((e) => e.id));
   performAction(user, "entry.create", {
     content: "Nội dung riêng",
     mood: "sadness",
     visibility,
     ...extras,
   });
-  return getState(user).entries.find((e) => e.owned)!;
+  return getState(user).entries.find((e) => e.owned && !existing.has(e.id))!;
 }
 
 test("private journals stay private and anonymous public posts contain no real identity", () => {
@@ -125,6 +126,154 @@ test("password groups enforce membership before publishing or reading", () => {
   performAction(bob, "group.join", { id: group.id, password: "secret" });
   assert.equal(getState(bob).entries.length, 1);
 });
+test("group deletion preserves every author's journals privately and leaves other entries unchanged", () => {
+  performAction(alice, "group.create", { name: "Our group" });
+  const group = getState(alice).groups[0];
+  performAction(bob, "group.join", { id: group.id });
+  const alicePost = entry(alice, "group", {
+    groupId: group.id,
+    content: "Alice's journal",
+    identity: "real",
+  });
+  const bobPost = entry(bob, "group", {
+    groupId: group.id,
+    content: "Bob's journal",
+    mood: "unsaid",
+  });
+  // Even legacy/stale sharing flags must be cleared on conversion to private.
+  db()
+    .prepare("UPDATE entries SET supportVisible=1 WHERE id=?")
+    .run(bobPost.id);
+  performAction(alice, "group.create", { name: "Another group" });
+  const otherGroup = getState(alice).groups.find((g) => g.id !== group.id)!;
+  const otherPost = entry(alice, "group", { groupId: otherGroup.id });
+  const publicPost = entry(bob, "public");
+  const privatePost = entry(alice);
+  const journalRows = () =>
+    db()
+      .prepare("SELECT * FROM entries ORDER BY id")
+      .all()
+      .map((post) => ({ ...post }));
+  const before = journalRows();
+
+  performAction(alice, "group.delete", { id: group.id });
+
+  assert.deepEqual(
+    journalRows(),
+    before.map((post) =>
+      post.groupId === group.id
+        ? { ...post, groupId: null, visibility: "private", supportVisible: 0 }
+        : post,
+    ),
+  );
+  assert.equal(
+    db().prepare("SELECT id FROM groups WHERE id=?").get(group.id),
+    undefined,
+  );
+  assert.equal(
+    db()
+      .prepare("SELECT COUNT(*) n FROM group_members WHERE groupId=?")
+      .get(group.id)?.n,
+    0,
+  );
+  assert.deepEqual(
+    getState(alice).entries.find((e) => e.id === alicePost.id),
+    {
+      ...alicePost,
+      visibility: "private",
+      groupId: null,
+      supportVisible: false,
+    },
+  );
+  assert.deepEqual(
+    getState(bob).entries.find((e) => e.id === bobPost.id),
+    {
+      ...bobPost,
+      visibility: "private",
+      groupId: null,
+      supportVisible: false,
+    },
+  );
+  assert.ok(getState(alice).entries.some((e) => e.id === otherPost.id));
+  assert.ok(getState(alice).entries.some((e) => e.id === privatePost.id));
+  for (const viewer of [alice, bob, expert, admin, null]) {
+    const state = getState(viewer);
+    assert.ok(state.groups.every((g) => g.id !== group.id));
+    for (const post of [alicePost, bobPost]) {
+      if (viewer?.id !== (post.id === alicePost.id ? alice.id : bob.id))
+        assert.ok(state.entries.every((e) => e.id !== post.id));
+    }
+    assert.ok(state.entries.some((e) => e.id === publicPost.id));
+  }
+  assert.throws(() => entry(bob, "group", { groupId: group.id }), {
+    status: 403,
+  });
+  assert.throws(() => performAction(bob, "group.join", { id: group.id }), {
+    status: 404,
+  });
+});
+
+test("members, outsiders and staff cannot delete someone else's group or change its journals", () => {
+  performAction(alice, "group.create", {
+    name: "Owner only",
+    password: "secret",
+  });
+  const group = getState(alice).groups[0];
+  performAction(bob, "group.join", { id: group.id, password: "secret" });
+  entry(bob, "group", { groupId: group.id });
+  const snapshot = () => ({
+    groups: db().prepare("SELECT * FROM groups").all(),
+    entries: db().prepare("SELECT * FROM entries").all(),
+    members: db().prepare("SELECT * FROM group_members").all(),
+  });
+  const before = snapshot();
+  for (const user of [bob, expert, admin]) {
+    assert.throws(() => performAction(user, "group.delete", { id: group.id }), {
+      status: 403,
+    });
+    assert.deepEqual(snapshot(), before);
+  }
+});
+
+test("owner can delete an empty group; missing or malformed group identifiers are rejected", () => {
+  performAction(alice, "group.create", { name: "Empty group" });
+  const group = getState(alice).groups[0];
+  for (const payload of [{}, { id: "" }, { id: null }, { id: 42 }]) {
+    assert.throws(() => performAction(alice, "group.delete", payload), {
+      name: "ZodError",
+    });
+    assert.equal(getState(alice).groups.length, 1);
+  }
+  performAction(alice, "group.delete", { id: group.id });
+  assert.equal(getState(alice).groups.length, 0);
+  assert.throws(() => performAction(alice, "group.delete", { id: group.id }), {
+    status: 404,
+  });
+});
+
+test("failed group deletion rolls back journal privacy and membership changes together", () => {
+  performAction(alice, "group.create", { name: "Atomic deletion" });
+  const group = getState(alice).groups[0];
+  performAction(bob, "group.join", { id: group.id });
+  const post = entry(bob, "group", { groupId: group.id });
+  db().exec(`CREATE TEMP TRIGGER fail_group_delete BEFORE DELETE ON groups
+    BEGIN SELECT RAISE(ABORT, 'simulated storage failure'); END;`);
+  try {
+    assert.throws(
+      () => performAction(alice, "group.delete", { id: group.id }),
+      /simulated storage failure/,
+    );
+    assert.deepEqual(
+      getState(bob).entries.find((e) => e.id === post.id),
+      post,
+    );
+    assert.equal(getState(bob).groups[0].memberCount, 2);
+    assert.equal(getState(alice).groups[0].joined, true);
+  } finally {
+    db().exec("DROP TRIGGER fail_group_delete");
+  }
+});
+
 test("staff access needs a claimed ticket, current Premium, and explicit journal sharing", () => {
   alice = premium(alice);
   entry(alice, "private", { supportVisible: true });

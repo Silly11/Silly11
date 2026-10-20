@@ -102,6 +102,7 @@ export type ActionName =
   | "notifications.read"
   | "group.create"
   | "group.join"
+  | "group.delete"
   | "connection.request"
   | "connection.respond"
   | "connection.message"

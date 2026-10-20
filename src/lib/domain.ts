@@ -562,6 +562,25 @@ export function performAction(
         .run(p.id, user.id);
       return;
     }
+    case "group.delete": {
+      const p = z.object({ id: identifier }).parse(payload);
+      transaction(() => {
+        const group = db()
+          .prepare("SELECT ownerId FROM groups WHERE id=?")
+          .get(p.id);
+        if (!group) fail("Nhóm không tồn tại.", 404);
+        if (group.ownerId !== user.id)
+          fail("Chỉ chủ nhóm mới có thể xóa nhóm.", 403);
+        // Detach journals before deleting the group: its foreign key cascades.
+        db()
+          .prepare(
+            "UPDATE entries SET groupId=NULL,visibility='private',supportVisible=0 WHERE groupId=?",
+          )
+          .run(p.id);
+        db().prepare("DELETE FROM groups WHERE id=?").run(p.id);
+      });
+      return;
+    }
     case "connection.request": {
       const p = z
         .object({

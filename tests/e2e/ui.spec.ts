@@ -1,4 +1,150 @@
 import { test, expect } from "@playwright/test";
+import type { AppState } from "../../src/lib/types";
+
+test("group owner confirms deletion; members keep their own journals privately", async ({
+  page,
+  browser,
+}) => {
+  const headers = { Origin: "http://127.0.0.1:3100" };
+  const memberContext = await browser.newContext();
+  const member = await memberContext.newPage();
+  try {
+    for (const [client, role] of [
+      [page, "owner"],
+      [member, "member"],
+    ] as const) {
+      const registered = await client.request.post("/api/auth/register", {
+        headers,
+        data: {
+          name: role,
+          email: `group-${role}-${Date.now()}@example.com`,
+          password: "a-secure-passphrase-2026",
+        },
+      });
+      expect(registered.ok()).toBe(true);
+    }
+    await page.goto("/");
+    await page
+      .getByRole("button", { name: "Vòng tròn kết nối", exact: true })
+      .click();
+    await page
+      .getByLabel("Tên vòng tròn", { exact: true })
+      .fill("Nhóm bình yên");
+    await page
+      .getByRole("button", { name: "Tạo vòng tròn", exact: true })
+      .click();
+    const card = page
+      .locator(".group-grid .surface")
+      .filter({ hasText: "Nhóm bình yên" });
+    const deleteButton = card.getByRole("button", {
+      name: "Xóa nhóm",
+      exact: true,
+    });
+    await expect(deleteButton).toBeVisible();
+    const ownerState: AppState = await (
+      await page.request.get("/api/state")
+    ).json();
+    const group = ownerState.groups.find((g) => g.name === "Nhóm bình yên")!;
+    expect(
+      (
+        await member.request.post("/api/action", {
+          headers,
+          data: { action: "group.join", payload: { id: group.id } },
+        })
+      ).ok(),
+    ).toBe(true);
+    const posts = [];
+    for (const [client, content] of [
+      [page, "Tâm tư của chủ nhóm"],
+      [member, "Tâm tư của thành viên"],
+    ] as const) {
+      const created = await client.request.post("/api/action", {
+        headers,
+        data: {
+          action: "entry.create",
+          payload: {
+            content,
+            mood: "joy",
+            visibility: "group",
+            groupId: group.id,
+          },
+        },
+      });
+      expect(created.ok()).toBe(true);
+      const state: AppState = await created.json();
+      posts.push(state.entries.find((e) => e.content === content)!);
+    }
+    await member.goto("/");
+    await member
+      .getByRole("button", { name: "Vòng tròn kết nối", exact: true })
+      .click();
+    const memberCard = member
+      .locator(".group-grid .surface")
+      .filter({ hasText: group.name });
+    await expect(
+      memberCard.getByRole("button", { name: "Chia sẻ trong nhóm" }),
+    ).toBeVisible();
+    await expect(
+      memberCard.getByRole("button", { name: "Xóa nhóm" }),
+    ).toHaveCount(0);
+    expect(
+      (
+        await member.request.post("/api/action", {
+          headers,
+          data: { action: "group.delete", payload: { id: group.id } },
+        })
+      ).status(),
+    ).toBe(403);
+
+    await page.reload();
+    await page
+      .getByRole("button", { name: "Vòng tròn kết nối", exact: true })
+      .click();
+    page.once("dialog", async (dialog) => {
+      expect(dialog.type()).toBe("confirm");
+      expect(dialog.message()).toContain("Nhóm bình yên");
+      expect(dialog.message()).toContain("chuyển về riêng tư");
+      await dialog.dismiss();
+    });
+    await deleteButton.click();
+    await expect(card).toBeVisible();
+    const cancelled: AppState = await (
+      await page.request.get("/api/state")
+    ).json();
+    expect(cancelled.groups.some((g) => g.id === group.id)).toBe(true);
+    expect(
+      cancelled.entries.filter((e) => e.groupId === group.id),
+    ).toHaveLength(2);
+
+    page.once("dialog", (dialog) => dialog.accept());
+    await deleteButton.click();
+    await expect(card).toHaveCount(0);
+    await expect(page.getByRole("status")).toContainText("Đã xóa nhóm");
+    for (const [client, own, other] of [
+      [page, posts[0], posts[1]],
+      [member, posts[1], posts[0]],
+    ] as const) {
+      const state: AppState = await (
+        await client.request.get("/api/state")
+      ).json();
+      expect(state.groups.some((g) => g.id === group.id)).toBe(false);
+      expect(state.entries.find((e) => e.id === own.id)).toMatchObject({
+        ...own,
+        visibility: "private",
+        groupId: null,
+        supportVisible: false,
+      });
+      expect(state.entries.some((e) => e.id === other.id)).toBe(false);
+    }
+    await member.reload();
+    await member
+      .getByRole("button", { name: "Vòng tròn kết nối", exact: true })
+      .click();
+    await expect(memberCard).toHaveCount(0);
+  } finally {
+    await memberContext.close();
+  }
+});
 
 test("desktop: guest journal, signup, persisted journal and immutable future letter", async ({
   page,
