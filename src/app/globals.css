@@ -2720,3 +2720,10 @@ h1 > svg {
     font-size: 7px;
   }
 }
+
+.entries-section > summary {
+  cursor: pointer;
+  color: #c9bddb;
+  font-size: 13px;
+  padding: 16px 0;
+}

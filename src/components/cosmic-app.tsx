@@ -35,6 +35,7 @@ import {
   Users,
   X,
 } from "lucide-react";
+import UniverseScene from "./universe-scene";
 import type {
   ActionName,
   AppState,
@@ -63,8 +64,8 @@ const MOODS = {
     color: "#97a9ff",
   },
   unsaid: {
-    label: "Lời chưa nói",
-    description: "Những tâm tư đang đợi được kể",
+    label: "Lời gửi gió",
+    description: "Gửi nhẹ những điều còn trong lòng",
     color: "#d09bcf",
   },
 };
@@ -97,12 +98,6 @@ const EMPTY: AppState = {
     backupRetentionDays: 30,
   },
 };
-const STAR_POINTS = Array.from({ length: 72 }, (_, i) => ({
-  x: (i * 37.17 + 9) % 100,
-  y: (i * 23.73 + 5) % 100,
-  size: i % 7 === 0 ? 3 : 1.5,
-  opacity: 0.17 + (i % 5) * 0.13,
-}));
 const date = (value: string) =>
   new Date(value).toLocaleDateString("vi-VN", {
     day: "numeric",
@@ -112,6 +107,10 @@ const date = (value: string) =>
 
 export default function CosmicApp() {
   const [state, setState] = useState<AppState>(EMPTY);
+  const [launch, setLaunch] = useState<{
+    sequence: number;
+    public: boolean;
+  } | null>(null);
   const [guestEntries, setGuestEntries] = useState<Entry[]>([]);
   const [tab, setTab] = useState<Tab>("personal");
   const [modal, setModal] = useState<
@@ -186,6 +185,11 @@ export default function CosmicApp() {
     }, 30000);
     return () => clearInterval(timer);
   }, [peer?.id, ticketId, tab, state.user?.id]);
+  useEffect(() => {
+    if (!launch) return;
+    const timer = setTimeout(() => setLaunch(null), 2200);
+    return () => clearTimeout(timer);
+  }, [launch]);
   useEffect(() => {
     if (!toast) return;
     const timer = setTimeout(() => setToast(""), 6500);
@@ -278,6 +282,11 @@ export default function CosmicApp() {
         ...old,
       ]);
       setModal(null);
+      setLaunch((old) => ({
+        sequence: (old?.sequence ?? 0) + 1,
+        public: false,
+      }));
+      setTab("personal");
       setToast("Một ngôi sao đã được thêm vào phiên trải nghiệm của bạn.");
       return;
     }
@@ -293,6 +302,13 @@ export default function CosmicApp() {
       })
     ) {
       setModal(null);
+      if (visibility !== "group") {
+        setLaunch((old) => ({
+          sequence: (old?.sequence ?? 0) + 1,
+          public: visibility === "public",
+        }));
+        setTab(visibility === "public" ? "public" : "personal");
+      }
       setToast("Tâm tư của bạn đã được gửi vào thiên hà.");
     }
   }
@@ -586,97 +602,13 @@ export default function CosmicApp() {
                           : "Được chủ nhân công khai"}
                       </span>
                     </div>
-                    <div className="galaxy-space">
-                      <div className="nebula nebula-one" />
-                      <div className="nebula nebula-two" />
-                      {STAR_POINTS.map((p, i) => (
-                        <i
-                          key={i}
-                          className="space-star"
-                          style={{
-                            left: `${p.x}%`,
-                            top: `${p.y}%`,
-                            width: p.size,
-                            height: p.size,
-                            opacity: p.opacity,
-                          }}
-                        />
-                      ))}
-                      <div className="orbit-ring ring-one" />
-                      <div className="orbit-ring ring-two" />
-                      <div className="orbit-ring ring-three" />
-                      <div className="galaxy-core">
-                        <span />
-                        <i />
-                        <b>✦</b>
-                      </div>
-                      {visibleEntries.length ? (
-                        visibleEntries.slice(0, 6).map((e, i) => (
-                          <button
-                            key={e.id}
-                            className={`galaxy-node node-${i % 6} ${e.mood}`}
-                            onClick={() => openEntry(e)}
-                            style={
-                              {
-                                "--star-color": MOODS[e.mood].color,
-                              } as React.CSSProperties
-                            }
-                          >
-                            <span className="node-glow">✦</span>
-                            <span className="node-label">
-                              {e.authorPremium
-                                ? "Một tâm tư được cất giữ"
-                                : MOODS[e.mood].label}
-                              <small>
-                                {e.owned ? date(e.createdAt) : e.displayName}
-                              </small>
-                            </span>
-                          </button>
-                        ))
-                      ) : (
-                        <>
-                          <button
-                            className="galaxy-node node-0 joy"
-                            onClick={() => compose("joy")}
-                          >
-                            <span className="node-glow">✦</span>
-                            <span className="node-label">
-                              Một niềm vui nho nhỏ
-                              <small>Gợi ý · Gửi tâm tư đầu tiên</small>
-                            </span>
-                          </button>
-                          <button
-                            className="galaxy-node node-1 unsaid"
-                            onClick={() => compose("unsaid")}
-                          >
-                            <span className="node-glow">✦</span>
-                            <span className="node-label">
-                              Điều bạn chưa từng nói
-                              <small>Gợi ý · Cứ viết, mình lắng nghe</small>
-                            </span>
-                          </button>
-                          <button
-                            className="galaxy-node node-2 sadness"
-                            onClick={() => compose("sadness")}
-                          >
-                            <span className="node-glow">✦</span>
-                            <span className="node-label">
-                              Gửi lại một chút muộn phiền
-                              <small>Gợi ý · Cho lòng nhẹ hơn</small>
-                            </span>
-                          </button>
-                        </>
-                      )}
-                      <div className="galaxy-caption">
-                        <span className="caption-line" />
-                        <p>
-                          {mine.length
-                            ? "Những mảnh cảm xúc, cùng làm nên một bạn rất riêng."
-                            : "Thiên hà này đang đợi câu chuyện đầu tiên của bạn."}
-                        </p>
-                        <small>Chạm vào một vì sao để lắng nghe</small>
-                      </div>
-                    </div>
+                    <UniverseScene
+                      shared={tab === "public"}
+                      entries={visibleEntries}
+                      onOpen={openEntry}
+                      onCompose={() => compose()}
+                      launch={launch}
+                    />
                     <div className="galaxy-bottom">
                       <span>
                         <i className="status-dot" />
@@ -711,7 +643,10 @@ export default function CosmicApp() {
                       </button>
                     </div>
                   )}
-                  <section className="entries-section">
+                  <details className="entries-section">
+                    <summary>
+                      Mở danh sách tâm tư ({visibleEntries.length})
+                    </summary>
                     <div className="section-title">
                       <h2>
                         {tab === "personal"
@@ -797,7 +732,7 @@ export default function CosmicApp() {
                         </span>
                       </div>
                     )}
-                  </section>
+                  </details>
                 </div>
                 <aside className="right-rail">
                   <div className="quote-card">
