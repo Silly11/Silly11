@@ -5,6 +5,7 @@ import {
   timingSafeEqual,
 } from "node:crypto";
 import { z } from "zod";
+import { DEFAULT_PLANET_ID, PLANET_IDS } from "./planets";
 import { db, transaction, checkpointDeletedData } from "./db";
 import {
   purgeUserBackups,
@@ -83,6 +84,7 @@ function mapEntry(row: Row, user: User | null): Entry {
     content: String(row.content),
     visibility: row.visibility as Entry["visibility"],
     groupId: row.groupId as string | null,
+    planetId: row.planetId as Entry["planetId"],
     createdAt: String(row.createdAt),
     owned: row.userId === user?.id,
     authorPremium:
@@ -423,6 +425,7 @@ export function performAction(
             .default("anonymous"),
           nickname: z.string().trim().max(60).optional(),
           groupId: identifier.nullable().optional(),
+          planetId: z.enum(PLANET_IDS).default(DEFAULT_PLANET_ID),
           supportVisible: z.boolean().default(false),
         })
         .parse(payload);
@@ -445,7 +448,7 @@ export function performAction(
       if (!displayName) fail("Hãy nhập biệt danh.");
       db()
         .prepare(
-          "INSERT INTO entries (id,userId,displayName,mood,content,visibility,groupId,supportVisible,createdAt) VALUES (?,?,?,?,?,?,?,?,?)",
+          "INSERT INTO entries (id,userId,displayName,mood,content,visibility,groupId,supportVisible,createdAt,planetId) VALUES (?,?,?,?,?,?,?,?,?,?)",
         )
         .run(
           id(),
@@ -457,6 +460,7 @@ export function performAction(
           p.visibility === "group" ? p.groupId! : null,
           p.visibility === "private" && p.supportVisible ? 1 : 0,
           now(),
+          p.planetId,
         );
       return;
     }

@@ -1,6 +1,7 @@
 import { DatabaseSync } from "node:sqlite";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
+import { DEFAULT_PLANET_ID, PLANET_IDS } from "./planets";
 
 let connection: DatabaseSync | undefined;
 export function db(): DatabaseSync {
@@ -79,6 +80,21 @@ export function db(): DatabaseSync {
     CREATE INDEX IF NOT EXISTS message_user ON messages(userId,createdAt);
     CREATE INDEX IF NOT EXISTS letter_due ON letters(status,deliverAt);
   `);
+  // Serialize the upgrade across web/worker processes. Existing journals stay on Earth.
+  connection.exec("BEGIN IMMEDIATE");
+  try {
+    const columns = connection.prepare("PRAGMA table_info(entries)").all();
+    if (!columns.some((column) => column.name === "planetId"))
+      connection.exec(
+        `ALTER TABLE entries ADD COLUMN planetId TEXT NOT NULL DEFAULT '${DEFAULT_PLANET_ID}' CHECK(planetId IN (${PLANET_IDS.map((planet) => `'${planet}'`).join(",")}))`,
+      );
+    connection.exec("COMMIT");
+  } catch (error) {
+    connection.exec("ROLLBACK");
+    connection.close();
+    connection = undefined;
+    throw error;
+  }
   return connection;
 }
 

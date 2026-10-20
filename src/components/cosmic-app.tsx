@@ -36,6 +36,7 @@ import {
   X,
 } from "lucide-react";
 import UniverseScene from "./universe-scene";
+import { DEFAULT_PLANET_ID, PLANETS, type PlanetId } from "@/lib/planets";
 import type {
   ActionName,
   AppState,
@@ -110,9 +111,15 @@ export default function CosmicApp() {
   const [launch, setLaunch] = useState<{
     sequence: number;
     public: boolean;
+    planetId: PlanetId;
   } | null>(null);
   const [guestEntries, setGuestEntries] = useState<Entry[]>([]);
   const [tab, setTab] = useState<Tab>("personal");
+  const [personalPlanetId, setPersonalPlanetId] = useState<PlanetId | "">("");
+  const [publicPlanetId, setPublicPlanetId] = useState<PlanetId | "">("");
+  const selectedPlanetId = tab === "public" ? publicPlanetId : personalPlanetId;
+  const selectPlanet =
+    tab === "public" ? setPublicPlanetId : setPersonalPlanetId;
   const [modal, setModal] = useState<
     "compose" | "auth" | "premium" | "notices" | "letter" | null
   >(null);
@@ -152,6 +159,8 @@ export default function CosmicApp() {
   const visibleEntries = allEntries.filter(
     (e) =>
       (tab === "public" ? e.visibility === "public" : e.owned) &&
+      !!selectedPlanetId &&
+      e.planetId === selectedPlanetId &&
       (filter === "all" || e.mood === filter) &&
       `${e.content} ${e.displayName}`
         .toLowerCase()
@@ -259,6 +268,9 @@ export default function CosmicApp() {
     const form = new FormData(event.currentTarget);
     const content = String(form.get("content") || "").trim();
     const visibility = String(form.get("visibility") || "private");
+    const planetId =
+      PLANETS.find((p) => p.id === form.get("planetId"))?.id ??
+      DEFAULT_PLANET_ID;
     if (!content) return;
     if (!state.user) {
       if (visibility !== "private") {
@@ -274,6 +286,7 @@ export default function CosmicApp() {
           displayName: "Bạn",
           visibility: "private",
           groupId: null,
+          planetId,
           owned: true,
           authorPremium: false,
           supportVisible: false,
@@ -285,8 +298,10 @@ export default function CosmicApp() {
       setLaunch((old) => ({
         sequence: (old?.sequence ?? 0) + 1,
         public: false,
+        planetId,
       }));
       setTab("personal");
+      setPersonalPlanetId(planetId);
       setToast("Một ngôi sao đã được thêm vào phiên trải nghiệm của bạn.");
       return;
     }
@@ -298,6 +313,7 @@ export default function CosmicApp() {
         identity: form.get("identity"),
         nickname: form.get("nickname"),
         groupId: form.get("groupId") || undefined,
+        planetId,
         supportVisible: form.get("supportVisible") === "on",
       })
     ) {
@@ -306,8 +322,11 @@ export default function CosmicApp() {
         setLaunch((old) => ({
           sequence: (old?.sequence ?? 0) + 1,
           public: visibility === "public",
+          planetId,
         }));
         setTab(visibility === "public" ? "public" : "personal");
+        if (visibility === "public") setPublicPlanetId(planetId);
+        else setPersonalPlanetId(planetId);
       }
       setToast("Tâm tư của bạn đã được gửi vào thiên hà.");
     }
@@ -604,6 +623,8 @@ export default function CosmicApp() {
                     </div>
                     <UniverseScene
                       shared={tab === "public"}
+                      planetId={selectedPlanetId}
+                      onPlanetChange={selectPlanet}
                       entries={visibleEntries}
                       onOpen={openEntry}
                       onCompose={() => compose()}
@@ -643,96 +664,101 @@ export default function CosmicApp() {
                       </button>
                     </div>
                   )}
-                  <details className="entries-section">
-                    <summary>
-                      Mở danh sách tâm tư ({visibleEntries.length})
-                    </summary>
-                    <div className="section-title">
-                      <h2>
-                        {tab === "personal"
-                          ? "Những tâm tư đã gửi"
-                          : "Lắng nghe những tâm tư"}
-                        <span>{visibleEntries.length}</span>
-                      </h2>
-                      <label className="search-field">
-                        <Search size={15} />
-                        <input
-                          aria-label="Tìm tâm tư"
-                          placeholder="Tìm một tâm tư…"
-                          value={search}
-                          onChange={(e) => setSearch(e.target.value)}
-                        />
-                      </label>
-                    </div>
-                    <div className="filter-row">
-                      <button
-                        className={filter === "all" ? "selected" : ""}
-                        onClick={() => setFilter("all")}
-                      >
-                        Tất cả
-                      </button>
-                      {(Object.keys(MOODS) as Mood[]).map((key) => (
+                  {selectedPlanetId && (
+                    <details
+                      key={`${tab}-${selectedPlanetId}`}
+                      className="entries-section"
+                    >
+                      <summary>
+                        Mở danh sách tâm tư ({visibleEntries.length})
+                      </summary>
+                      <div className="section-title">
+                        <h2>
+                          {tab === "personal"
+                            ? "Những tâm tư đã gửi"
+                            : "Lắng nghe những tâm tư"}
+                          <span>{visibleEntries.length}</span>
+                        </h2>
+                        <label className="search-field">
+                          <Search size={15} />
+                          <input
+                            aria-label="Tìm tâm tư"
+                            placeholder="Tìm một tâm tư…"
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                          />
+                        </label>
+                      </div>
+                      <div className="filter-row">
                         <button
-                          key={key}
-                          className={filter === key ? "selected" : ""}
-                          onClick={() => setFilter(key)}
+                          className={filter === "all" ? "selected" : ""}
+                          onClick={() => setFilter("all")}
                         >
-                          <i style={{ background: MOODS[key].color }} />
-                          {MOODS[key].label}
+                          Tất cả
                         </button>
-                      ))}
-                    </div>
-                    {visibleEntries.length ? (
-                      <div className="entry-grid">
-                        {visibleEntries.map((e) => (
+                        {(Object.keys(MOODS) as Mood[]).map((key) => (
                           <button
-                            className={`entry-card ${e.mood}`}
-                            key={e.id}
-                            onClick={() => openEntry(e)}
+                            key={key}
+                            className={filter === key ? "selected" : ""}
+                            onClick={() => setFilter(key)}
                           >
-                            <div className="entry-card-top">
-                              <span style={{ color: MOODS[e.mood].color }}>
-                                ✦ {MOODS[e.mood].label}
-                              </span>
-                              <span>
-                                {e.visibility === "private" ? (
-                                  <LockKeyhole size={13} />
-                                ) : (
-                                  <Globe2 size={13} />
-                                )}
-                              </span>
-                            </div>
-                            {e.authorPremium || e.mood === "sadness" ? (
-                              <p className="concealed">
-                                <Eye size={20} />
-                                Chạm để mở tâm tư
-                              </p>
-                            ) : (
-                              <p>{e.content}</p>
-                            )}
-                            <footer>
-                              {e.owned ? "Bạn" : e.displayName}
-                              <span>{date(e.createdAt)}</span>
-                            </footer>
+                            <i style={{ background: MOODS[key].color }} />
+                            {MOODS[key].label}
                           </button>
                         ))}
                       </div>
-                    ) : (
-                      <div className="empty-entries">
-                        <Star size={23} />
-                        <p>
-                          {search || filter !== "all"
-                            ? "Chưa có tâm tư phù hợp."
-                            : "Chưa có tâm tư nào ở đây."}
-                        </p>
-                        <span>
-                          {tab === "personal"
-                            ? "Một dòng ngắn thôi cũng có thể trở thành một vì sao."
-                            : "Khi ai đó sẵn sàng sẻ chia, bạn sẽ tìm thấy họ ở đây."}
-                        </span>
-                      </div>
-                    )}
-                  </details>
+                      {visibleEntries.length ? (
+                        <div className="entry-grid">
+                          {visibleEntries.map((e) => (
+                            <button
+                              className={`entry-card ${e.mood}`}
+                              key={e.id}
+                              onClick={() => openEntry(e)}
+                            >
+                              <div className="entry-card-top">
+                                <span style={{ color: MOODS[e.mood].color }}>
+                                  ✦ {MOODS[e.mood].label}
+                                </span>
+                                <span>
+                                  {e.visibility === "private" ? (
+                                    <LockKeyhole size={13} />
+                                  ) : (
+                                    <Globe2 size={13} />
+                                  )}
+                                </span>
+                              </div>
+                              {e.authorPremium || e.mood === "sadness" ? (
+                                <p className="concealed">
+                                  <Eye size={20} />
+                                  Chạm để mở tâm tư
+                                </p>
+                              ) : (
+                                <p>{e.content}</p>
+                              )}
+                              <footer>
+                                {e.owned ? "Bạn" : e.displayName}
+                                <span>{date(e.createdAt)}</span>
+                              </footer>
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="empty-entries">
+                          <Star size={23} />
+                          <p>
+                            {search || filter !== "all"
+                              ? "Chưa có tâm tư phù hợp."
+                              : "Chưa có tâm tư nào ở đây."}
+                          </p>
+                          <span>
+                            {tab === "personal"
+                              ? "Một dòng ngắn thôi cũng có thể trở thành một vì sao."
+                              : "Khi ai đó sẵn sàng sẻ chia, bạn sẽ tìm thấy họ ở đây."}
+                          </span>
+                        </div>
+                      )}
+                    </details>
+                  )}
                 </div>
                 <aside className="right-rail">
                   <div className="quote-card">
@@ -1663,6 +1689,18 @@ export default function CosmicApp() {
                   maxLength={5000}
                   autoFocus
                 />
+              </Field>
+              <Field label="Gửi tâm tư đến hành tinh">
+                <select
+                  name="planetId"
+                  defaultValue={selectedPlanetId || DEFAULT_PLANET_ID}
+                >
+                  {PLANETS.map((planet) => (
+                    <option key={planet.id} value={planet.id}>
+                      {planet.name}
+                    </option>
+                  ))}
+                </select>
               </Field>
               <Field label="Ai được nhìn thấy tâm tư này?">
                 <select

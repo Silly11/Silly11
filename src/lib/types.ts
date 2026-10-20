@@ -1,3 +1,5 @@
+import type { PlanetId } from "./planets";
+
 export type Role = "user" | "expert" | "admin";
 export type Mood = "joy" | "sadness" | "unsaid";
 export type Visibility = "private" | "public" | "group";
@@ -21,6 +23,7 @@ export interface Entry {
   content: string;
   visibility: Visibility;
   groupId: string | null;
+  planetId: PlanetId;
   createdAt: string;
   owned: boolean;
   authorPremium: boolean;

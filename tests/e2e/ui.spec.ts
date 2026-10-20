@@ -172,6 +172,9 @@ test("desktop: guest journal, signup, persisted journal and immutable future let
     .click();
   await expect(page.getByRole("dialog")).toBeHidden();
   const privateSky = page.getByRole("region", { name: "Bầu trời riêng" });
+  await privateSky
+    .getByRole("combobox", { name: "Chọn hành tinh" })
+    .selectOption("earth");
   await privateSky.getByRole("button", { name: /Mở Niềm vui/ }).click();
   await expect(page.getByRole("dialog")).toContainText(
     "Một niềm vui trong phiên khách",
@@ -202,6 +205,9 @@ test("desktop: guest journal, signup, persisted journal and immutable future let
     .click();
   await expect(page.getByRole("dialog")).toBeHidden();
   await page.reload();
+  await privateSky
+    .getByRole("combobox", { name: "Chọn hành tinh" })
+    .selectOption("earth");
   await privateSky.getByRole("button", { name: /Mở Niềm vui/ }).click();
   await expect(page.getByRole("dialog")).toContainText(
     "Hôm nay mình đã bắt đầu một điều mới.",
@@ -272,11 +278,12 @@ test("mobile: no horizontal overflow, navigation and compose dialog remain usabl
   await expect(page.getByRole("dialog")).toBeHidden();
 });
 
-test("planet system: public stars, viewpoints, pause, mobile and reduced motion", async ({
+test("planet journals: white private system, isolated destinations, stars, motion and mobile", async ({
   page,
 }) => {
+  const headers = { Origin: "http://127.0.0.1:3100" };
   const registered = await page.request.post("/api/auth/register", {
-    headers: { Origin: "http://127.0.0.1:3100" },
+    headers,
     data: {
       name: "Người ngắm sao",
       email: `sky-${Date.now()}@example.com`,
@@ -284,48 +291,99 @@ test("planet system: public stars, viewpoints, pause, mobile and reduced motion"
     },
   });
   expect(registered.ok()).toBe(true);
-  for (const [mood, visibility] of [
-    ["joy", "public"],
-    ["sadness", "private"],
-    ["unsaid", "private"],
+  for (const [content, mood, visibility, planetId] of [
+    ["Ánh sao công khai Trái Đất", "joy", "public", "earth"],
+    ["Ánh sao công khai Sao Hỏa", "joy", "public", "mars"],
+    ["Nỗi buồn riêng Trái Đất", "sadness", "private", "earth"],
+    ["Lời gửi gió riêng Sao Hỏa", "unsaid", "private", "mars"],
   ]) {
-    const created = await page.request.post("/api/action", {
-      headers: { Origin: "http://127.0.0.1:3100" },
-      data: {
-        action: "entry.create",
-        payload: {
-          content: `Bầu trời ${mood}`,
-          mood,
-          visibility,
-          identity: "anonymous",
-        },
-      },
-    });
-    expect(created.ok()).toBe(true);
+    expect(
+      (
+        await page.request.post("/api/action", {
+          headers,
+          data: {
+            action: "entry.create",
+            payload: { content, mood, visibility, planetId },
+          },
+        })
+      ).ok(),
+    ).toBe(true);
   }
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto("/");
   await expect(page.getByText("Đang mở thiên hà…")).toBeHidden();
   const privateSky = page.getByRole("region", { name: "Bầu trời riêng" });
-  await expect(privateSky.getByRole("button", { name: /Mở / })).toHaveCount(3);
-  await expect(privateSky).not.toContainText("Bầu trời sadness");
-  await privateSky.getByRole("button", { name: /Mở Lời gửi gió/ }).click();
-  await expect(page.getByRole("dialog")).toContainText("Bầu trời unsaid");
-  await page.keyboard.press("Escape");
+  await expect(
+    privateSky.getByRole("button", { name: /Dừng chân tại/ }),
+  ).toHaveCount(8);
+  await expect(privateSky.locator('[class*="whitePlanet"]')).toHaveCount(8);
+  await expect(privateSky.locator("svg")).toHaveCount(0);
+  await expect(privateSky.getByRole("button", { name: /Mở / })).toHaveCount(0);
+  await expect(page.locator(".entries-section")).toHaveCount(0);
+  const privateBackground = privateSky.locator('[class*="distantStar"]');
+  await expect(privateBackground).toHaveCount(210);
+  await expect(privateBackground.first()).toHaveText("✦");
+  await expect(privateBackground.first()).toHaveCSS(
+    "color",
+    "rgb(255, 255, 255)",
+  );
   await page.screenshot({
     path: "test-results/universe-private.png",
     fullPage: true,
   });
+  await privateSky
+    .getByRole("button", { name: "Tạm dừng chuyển động" })
+    .click();
+  await expect(privateSky.locator('[class*="traveler"]').first()).toHaveCSS(
+    "animation-play-state",
+    "paused",
+  );
+  await expect(privateBackground.first()).toHaveCSS(
+    "animation-play-state",
+    "paused",
+  );
+  await privateSky
+    .getByRole("button", { name: "Tiếp tục chuyển động" })
+    .click();
+  await expect(privateSky.locator('[class*="traveler"]').first()).toHaveCSS(
+    "animation-play-state",
+    "running",
+  );
+  await privateSky
+    .getByRole("button", { name: "Tạm dừng chuyển động" })
+    .click();
+  await privateSky
+    .getByRole("button", { name: "Dừng chân tại Trái Đất", exact: true })
+    .click();
+  await expect(privateSky.getByRole("button", { name: /Mở / })).toHaveCount(2);
+  await privateSky
+    .getByRole("combobox", { name: "Chọn hành tinh" })
+    .selectOption("mars");
+  await expect(privateSky.getByRole("button", { name: /Mở / })).toHaveCount(2);
+  await privateSky.getByRole("button", { name: /Mở Lời gửi gió/ }).click();
+  await expect(page.getByRole("dialog")).toContainText(
+    "Lời gửi gió riêng Sao Hỏa",
+  );
+  await page.keyboard.press("Escape");
+  await page.locator(".entries-section > summary").click();
+  await expect(page.locator(".entry-grid")).toContainText(
+    "Ánh sao công khai Sao Hỏa",
+  );
+  await expect(page.locator(".entry-grid")).not.toContainText(
+    "Ánh sao công khai Trái Đất",
+  );
+  await privateSky.getByRole("button", { name: "← Về toàn cảnh" }).click();
+  await expect(page.locator(".entries-section")).toHaveCount(0);
+  await privateSky
+    .getByRole("button", { name: "Tiếp tục chuyển động" })
+    .click();
+
   await page
     .getByRole("button", { name: "Thiên hà chung", exact: true })
     .click();
   const system = page.getByRole("region", { name: "Hệ hành tinh chung" });
-  await expect(
-    system.getByRole("button", { name: /Dừng chân tại/ }),
-  ).toHaveCount(8);
-  await expect(
-    system.getByRole("button", { name: /Mở Nỗi buồn|Mở Lời gửi gió/ }),
-  ).toHaveCount(0);
+  await expect(system.getByRole("button", { name: /Mở / })).toHaveCount(0);
+  await expect(system.locator('[class*="distantStar"]')).toHaveCount(210);
   await page.screenshot({
     path: "test-results/universe-system.png",
     fullPage: true,
@@ -339,9 +397,24 @@ test("planet system: public stars, viewpoints, pause, mobile and reduced motion"
   await system
     .getByRole("button", { name: "Dừng chân tại Trái Đất", exact: true })
     .click();
+  await expect(system.getByRole("button", { name: /Mở Niềm vui/ })).toHaveCount(
+    1,
+  );
   await expect(
-    system.getByText("Một khoảng bình yên trên Trái Đất"),
-  ).toBeVisible();
+    system.getByRole("button", { name: /Mở Nỗi buồn|Mở Lời gửi gió/ }),
+  ).toHaveCount(0);
+  const journalStar = system
+    .getByRole("button", { name: /Mở Niềm vui/ })
+    .locator("span");
+  await expect(journalStar).toHaveText("✦");
+  await expect(journalStar).toHaveCSS("color", "rgb(255, 255, 255)");
+  await page.locator(".entries-section > summary").click();
+  await expect(page.locator(".entry-grid")).toContainText(
+    "Ánh sao công khai Trái Đất",
+  );
+  await expect(page.locator(".entry-grid")).not.toContainText(
+    "Ánh sao công khai Sao Hỏa",
+  );
   await page.screenshot({
     path: "test-results/universe-earth.png",
     fullPage: true,
@@ -349,25 +422,49 @@ test("planet system: public stars, viewpoints, pause, mobile and reduced motion"
   await system
     .getByRole("combobox", { name: "Chọn hành tinh" })
     .selectOption("mars");
-  await expect(
-    system.getByText("Một khoảng bình yên trên Sao Hỏa"),
-  ).toBeVisible();
+  await system.getByRole("button", { name: /Mở Niềm vui/ }).click();
+  await expect(page.getByRole("dialog")).toContainText(
+    "Ánh sao công khai Sao Hỏa",
+  );
+  await page.keyboard.press("Escape");
   await system.getByRole("button", { name: "Tiếp tục chuyển động" }).click();
   await system.getByRole("button", { name: "Gửi một ánh sao" }).click();
+  await expect(page.getByLabel("Gửi tâm tư đến hành tinh")).toHaveValue("mars");
+  await page.getByLabel("Gửi tâm tư đến hành tinh").selectOption("venus");
   await page
     .getByLabel("Điều bạn muốn gửi vào thiên hà")
-    .fill("Một ánh sao mới bay lên");
+    .fill("Một ánh sao mới trên Sao Kim");
   await page
     .getByRole("button", { name: "Thả một vì sao vào thiên hà" })
     .click();
   await expect(page.getByRole("dialog")).toBeHidden();
+  await expect(
+    system.getByRole("combobox", { name: "Chọn hành tinh" }),
+  ).toHaveValue("venus");
   await expect(system.locator('[class*="launch"]')).toBeVisible();
   await expect(system.getByRole("button", { name: /Mở Niềm vui/ })).toHaveCount(
-    2,
+    1,
   );
+  await page.reload();
+  await page
+    .getByRole("button", { name: "Thiên hà chung", exact: true })
+    .click();
+  await expect(system.getByRole("button", { name: /Mở / })).toHaveCount(0);
+  await system
+    .getByRole("combobox", { name: "Chọn hành tinh" })
+    .selectOption("venus");
+  await system.getByRole("button", { name: /Mở Niềm vui/ }).click();
+  await expect(page.getByRole("dialog")).toContainText(
+    "Một ánh sao mới trên Sao Kim",
+  );
+  await page.keyboard.press("Escape");
   await system.getByRole("button", { name: "← Về toàn cảnh" }).click();
   await page.emulateMedia({ reducedMotion: "reduce" });
   await expect(traveler).toHaveCSS("animation-name", "none");
+  await expect(system.locator('[class*="distantStar"]').first()).toHaveCSS(
+    "animation-name",
+    "none",
+  );
   await page.setViewportSize({ width: 390, height: 844 });
   for (const view of ["", "earth", "venus", "mars"]) {
     await system
@@ -379,11 +476,26 @@ test("planet system: public stars, viewpoints, pause, mobile and reduced motion"
       ),
     ).toBe(true);
   }
-  await page
-    .getByRole("button", { name: "Đóng thông báo", exact: true })
-    .click();
   await page.screenshot({
     path: "test-results/universe-mobile.png",
+    fullPage: true,
+  });
+  await page.getByRole("button", { name: "Mở menu", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Thiên hà của bạn", exact: true })
+    .click();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  await expect(privateSky.locator('[class*="whitePlanet"]')).toHaveCount(8);
+  await expect(privateSky.locator('[class*="distantStar"]').first()).toHaveCSS(
+    "animation-name",
+    "none",
+  );
+  await page.screenshot({
+    path: "test-results/universe-private-mobile.png",
     fullPage: true,
   });
 });

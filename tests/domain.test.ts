@@ -77,6 +77,27 @@ test("private journals stay private and anonymous public posts contain no real i
   assert.equal(getState(expert).entries.length, 1);
   assert.throws(() => performAction(bob, "entry.delete", { id: post.id }));
 });
+test("planet destinations persist independently from visibility and reject unknown planets", () => {
+  const legacy = entry(alice);
+  assert.equal(legacy.planetId, "earth");
+  const mars = entry(alice, "public", { planetId: "mars" });
+  const earth = entry(alice, "private", { planetId: "earth" });
+  assert.equal(
+    getState(null).entries.find((e) => e.id === mars.id)?.planetId,
+    "mars",
+  );
+  assert.ok(getState(bob).entries.every((e) => e.id !== earth.id));
+  for (const planetId of ["pluto", "", null, 42]) {
+    assert.throws(() => entry(alice, "public", { planetId }), {
+      name: "ZodError",
+    });
+  }
+  assert.equal(getState(alice).entries.length, 3);
+  const saved = getState(alice).entries.find((e) => e.id === mars.id)!;
+  assert.equal(saved.planetId, "mars");
+  assert.equal(saved.content, mars.content);
+});
+
 test("five successful AI messages enforce cooldown while failed calls release quota", () => {
   const reserved = reserveAiTurn(alice.id);
   assert.throws(() => reserveAiTurn(alice.id), /đang được xử lý/);
@@ -138,6 +159,7 @@ test("group deletion preserves every author's journals privately and leaves othe
   const bobPost = entry(bob, "group", {
     groupId: group.id,
     content: "Bob's journal",
+    planetId: "mars",
     mood: "unsaid",
   });
   // Even legacy/stale sharing flags must be cleared on conversion to private.
