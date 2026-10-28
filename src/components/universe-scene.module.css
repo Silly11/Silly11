@@ -72,6 +72,7 @@
   overflow: hidden;
 }
 .system {
+  --system-tilt: 130deg;
   position: relative;
   width: 100%;
   min-width: 0;
@@ -88,6 +89,8 @@
   stroke-width: 1.2;
   filter: drop-shadow(0 0 3px #ffffff99);
   pointer-events: none;
+  /* Project the orbital plane while keeping the controls facing the viewer. */
+  transform: scaleY(cos(var(--system-tilt)));
 }
 .sun {
   position: absolute;
@@ -132,7 +135,9 @@
 .planetButton {
   --orbit-angle: var(--phase);
   position: absolute;
-  top: calc(50% + var(--ry) * sin(var(--orbit-angle)));
+  top: calc(
+    50% + var(--ry) * sin(var(--orbit-angle)) * cos(var(--system-tilt))
+  );
   left: calc(50% + var(--rx) * cos(var(--orbit-angle)));
   width: 44px;
   height: 44px;
@@ -147,7 +152,7 @@
   animation: followOrbit var(--period) linear infinite;
   transition: none;
 }
-.system:hover .planetButton,
+.systemViewport:hover .planetButton,
 .system:focus-within .planetButton {
   animation-play-state: paused;
 }
