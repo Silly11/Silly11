@@ -98,56 +98,62 @@ export default function UniverseScene({
         </div>
         {!planet && (
           <div
-            className={`${styles.system} ${!shared ? styles.privateSystem : ""}`}
+            className={styles.systemViewport}
+            tabIndex={0}
+            aria-label="Bản đồ quỹ đạo, cuộn ngang để khám phá"
           >
-            <div
-              className={styles.sun}
-              aria-label={shared ? "Mặt Trời" : "Tâm hệ hành tinh riêng"}
-              role="img"
-            />
-            {PLANETS.map((p) => (
-              <div
-                key={p.id}
-                className={styles.orbit}
-                style={
-                  {
-                    "--orbit": `${p.orbit}%`,
-                    "--period": `${p.period}s`,
-                    "--phase": `${p.phase}deg`,
-                    "--planet-color": shared ? p.color : "#ffffff",
-                    "--size": `${p.size}px`,
-                  } as CSSProperties
-                }
+            <div className={styles.system}>
+              <svg
+                className={styles.orbitLines}
+                viewBox="0 0 1200 600"
+                preserveAspectRatio="none"
+                aria-hidden="true"
               >
-                <div className={styles.traveler}>
+                {PLANETS.map((p, i) => (
+                  <ellipse
+                    key={p.id}
+                    cx="-96"
+                    cy="276"
+                    rx={288 + i * 128.4}
+                    ry={70 + i * 28}
+                  />
+                ))}
+              </svg>
+              <div className={styles.sun} aria-label="Mặt Trời" role="img" />
+              <span className={styles.sunLabel}>Mặt Trời</span>
+              {PLANETS.map((p, i) => (
+                <div
+                  key={p.id}
+                  className={styles.orbit}
+                  style={
+                    {
+                      "--rx": `${24 + i * 10.7}%`,
+                      "--ry": `${(70 + i * 28) / 6}%`,
+                      "--destination": `${16 + i * 10.7}%`,
+                      "--period": `${p.period}s`,
+                      "--delay": `${-p.period * (i / 8)}s`,
+                    } as CSSProperties
+                  }
+                >
+                  <span className={styles.traveler} aria-hidden="true" />
                   <button
                     type="button"
                     className={styles.planetButton}
                     aria-label={`Dừng chân tại ${p.name}`}
                     onClick={() => onPlanetChange(p.id)}
                   >
-                    <span
-                      className={`${styles.planet} ${shared ? styles[p.id] : styles.whitePlanet}`}
-                      aria-hidden="true"
-                    />
+                    <span className={styles.whitePlanet} aria-hidden="true">
+                      ✦
+                    </span>
                     <span className={styles.planetLabel}>{p.name}</span>
                   </button>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         )}
-        {planet && (
-          <div
-            aria-hidden="true"
-            className={`${styles.horizon} ${shared ? styles[planet.id] : styles.whiteHorizon}`}
-            style={
-              {
-                "--planet-color": shared ? planet.color : "#e6edff",
-              } as CSSProperties
-            }
-          />
-        )}
+        {planet && <div aria-hidden="true" className={styles.horizon} />}
+
         <div className={styles.entryLayer}>
           {planetEntries.map((entry) => (
             <button
@@ -182,7 +188,7 @@ export default function UniverseScene({
           </p>
           <small>
             {!planet
-              ? "Tâm tư chỉ hiện khi bạn mở hành tinh đã gửi."
+              ? "Tâm tư chỉ hiện khi bạn mở hành tinh đã gửi. Kéo ngang để khám phá quỹ đạo."
               : planetEntries.length
                 ? `${planetEntries.length} tâm tư · Chạm vào ngôi sao trắng để mở`
                 : "Hành tinh đang đợi ngôi sao đầu tiên"}

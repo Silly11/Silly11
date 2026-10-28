@@ -171,6 +171,12 @@ test("desktop: guest journal, signup, persisted journal and immutable future let
     .getByRole("button", { name: "Thả một vì sao vào thiên hà" })
     .click();
   await expect(page.getByRole("dialog")).toBeHidden();
+  await page.addStyleTag({
+    content: "nextjs-portal { display: none !important; }",
+  });
+  expect((await page.request.get("/images/universe-starfield.svg")).ok()).toBe(
+    true,
+  );
   const privateSky = page.getByRole("region", { name: "Bầu trời riêng" });
   await privateSky
     .getByRole("combobox", { name: "Chọn hành tinh" })
@@ -312,12 +318,44 @@ test("planet journals: white private system, isolated destinations, stars, motio
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto("/");
   await expect(page.getByText("Đang mở thiên hà…")).toBeHidden();
+  await page.addStyleTag({
+    content: "nextjs-portal { display: none !important; }",
+  });
+  expect((await page.request.get("/images/universe-starfield.svg")).ok()).toBe(
+    true,
+  );
   const privateSky = page.getByRole("region", { name: "Bầu trời riêng" });
   await expect(
     privateSky.getByRole("button", { name: /Dừng chân tại/ }),
   ).toHaveCount(8);
   await expect(privateSky.locator('[class*="whitePlanet"]')).toHaveCount(8);
-  await expect(privateSky.locator("svg")).toHaveCount(0);
+  await expect(privateSky.locator("svg ellipse")).toHaveCount(8);
+  expect(
+    await privateSky
+      .getByLabel("Bản đồ quỹ đạo, cuộn ngang để khám phá")
+      .evaluate((element) => element.scrollWidth <= element.clientWidth),
+  ).toBe(true);
+  await expect(privateSky.locator('[class*="planetLabel"]')).toHaveCount(8);
+  await expect(
+    privateSky.locator('[class*="planetLabel"]').last(),
+  ).toBeVisible();
+  await expect(privateSky.getByRole("img", { name: "Mặt Trời" })).toBeVisible();
+  const labels = await privateSky
+    .locator('[class*="planetLabel"]')
+    .evaluateAll((elements) =>
+      elements.map((element) => {
+        const { left, right, top, bottom } = element.getBoundingClientRect();
+        return { left, right, top, bottom };
+      }),
+    );
+  for (let i = 0; i < labels.length - 1; i++) {
+    const a = labels[i],
+      b = labels[i + 1];
+    expect(a.right <= b.left || a.bottom <= b.top || b.bottom <= a.top).toBe(
+      true,
+    );
+  }
+
   await expect(privateSky.getByRole("button", { name: /Mở / })).toHaveCount(0);
   await expect(page.locator(".entries-section")).toHaveCount(0);
   const privateBackground = privateSky.locator('[class*="distantStar"]');
@@ -328,6 +366,7 @@ test("planet journals: white private system, isolated destinations, stars, motio
     "rgb(255, 255, 255)",
   );
   await page.screenshot({
+    style: "nextjs-portal { display: none !important; }",
     path: "test-results/universe-private.png",
     fullPage: true,
   });
@@ -385,6 +424,7 @@ test("planet journals: white private system, isolated destinations, stars, motio
   await expect(system.getByRole("button", { name: /Mở / })).toHaveCount(0);
   await expect(system.locator('[class*="distantStar"]')).toHaveCount(210);
   await page.screenshot({
+    style: "nextjs-portal { display: none !important; }",
     path: "test-results/universe-system.png",
     fullPage: true,
   });
@@ -416,6 +456,7 @@ test("planet journals: white private system, isolated destinations, stars, motio
     "Ánh sao công khai Sao Hỏa",
   );
   await page.screenshot({
+    style: "nextjs-portal { display: none !important; }",
     path: "test-results/universe-earth.png",
     fullPage: true,
   });
@@ -477,6 +518,7 @@ test("planet journals: white private system, isolated destinations, stars, motio
     ).toBe(true);
   }
   await page.screenshot({
+    style: "nextjs-portal { display: none !important; }",
     path: "test-results/universe-mobile.png",
     fullPage: true,
   });
@@ -494,7 +536,22 @@ test("planet journals: white private system, isolated destinations, stars, motio
     "animation-name",
     "none",
   );
+  const map = privateSky.getByLabel("Bản đồ quỹ đạo, cuộn ngang để khám phá");
+  expect(
+    await map.evaluate((element) => element.scrollWidth > element.clientWidth),
+  ).toBe(true);
+  await map.evaluate((element) => {
+    element.scrollLeft = element.scrollWidth;
+  });
+  await privateSky
+    .getByRole("button", { name: "Dừng chân tại Sao Hải Vương", exact: true })
+    .click();
+  await expect(
+    privateSky.getByRole("combobox", { name: "Chọn hành tinh" }),
+  ).toHaveValue("neptune");
+  await privateSky.getByRole("button", { name: "← Về toàn cảnh" }).click();
   await page.screenshot({
+    style: "nextjs-portal { display: none !important; }",
     path: "test-results/universe-private-mobile.png",
     fullPage: true,
   });

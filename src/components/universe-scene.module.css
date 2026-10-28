@@ -35,15 +35,17 @@
   isolation: isolate;
   overflow: hidden;
   background:
-    radial-gradient(ellipse at 50% 42%, #28305144, transparent 64%), #080e1b;
+    linear-gradient(#03060d20, #03060d50),
+    url("/images/universe-starfield.svg") center / cover,
+    #03060d;
 }
 .dust {
   position: absolute;
   inset: 0;
   pointer-events: none;
   background:
-    radial-gradient(ellipse at 25% 30%, #7458781c, transparent 50%),
-    radial-gradient(ellipse at 80% 65%, #52748b1a, transparent 50%);
+    radial-gradient(ellipse at 65% 20%, #6c83b51a, transparent 50%),
+    radial-gradient(ellipse at 35% 85%, #a397c01c, transparent 45%);
 }
 .constellations {
   position: absolute;
@@ -58,124 +60,163 @@
   text-shadow: 0 0 8px #ffffffaa;
   animation: shimmer 5s ease-in-out infinite alternate;
 }
-.system {
+.systemViewport {
+  container-type: inline-size;
   position: absolute;
-  width: min(92%, 500px);
-  aspect-ratio: 1;
-  top: 42%;
-  left: 50%;
-  transform: translate(-50%, -50%);
+  inset: 0 0 90px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: #c9d5ee55 transparent;
+}
+.system {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+  isolation: isolate;
+}
+.orbitLines {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: #f4f7ffb0;
+  stroke-width: 1.2;
+  filter: drop-shadow(0 0 3px #ffffff99);
+  pointer-events: none;
 }
 .sun {
   position: absolute;
-  width: 26px;
-  height: 26px;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
+  left: -155px;
+  top: 46%;
+  width: 240px;
+  height: 240px;
+  transform: translateY(-50%);
   border-radius: 50%;
-  background: radial-gradient(circle at 35% 30%, #fff7d5, #e8b067 65%, #ba6a46);
+  background: radial-gradient(
+    circle at 70% 40%,
+    #fff 0 30%,
+    #ecedf2 55%,
+    #a5afbe 80%
+  );
   box-shadow:
-    0 0 25px #f3bc7155,
-    0 0 75px #e2a75b22;
+    0 0 18px 5px #fff,
+    0 0 65px 12px #e7edff99,
+    0 0 150px 25px #e8efff33;
+}
+.sun::after {
+  content: "";
+  position: absolute;
+  inset: 6px;
+  border-radius: inherit;
+  background: repeating-conic-gradient(
+    from 20deg,
+    #ffffff50 0deg 3deg,
+    transparent 5deg 14deg
+  );
+  filter: blur(4px);
+  animation: revolve 100s linear infinite;
+}
+.sunLabel {
+  position: absolute;
+  left: 4%;
+  top: 12%;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 600;
+  text-shadow: 0 2px 8px #000;
+}
+.sunLabel::after {
+  content: "";
+  position: absolute;
+  width: 1px;
+  height: 48px;
+  left: 12px;
+  top: 30px;
+  background: #ffffffaa;
+  transform: rotate(30deg);
 }
 .orbit {
   position: absolute;
-  width: var(--orbit);
-  aspect-ratio: 1;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  border: 1px solid #b1bfda12;
-  border-radius: 50%;
+  inset: 0;
   pointer-events: none;
 }
 .traveler {
   position: absolute;
-  inset: -1px;
-  transform: rotate(var(--phase));
-  animation: revolve var(--period) linear infinite;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 9px 2px #ffffffaa;
+  offset-path: ellipse(var(--rx) var(--ry) at -8% 46%);
+  animation: followOrbit var(--period) linear infinite;
+  animation-delay: var(--delay);
 }
 .planetButton {
   position: absolute;
-  top: 50%;
-  left: 100%;
+  top: 46%;
+  left: var(--destination);
   width: 44px;
   height: 44px;
   display: grid;
   place-items: center;
   padding: 0;
   border: 0;
+  background: transparent;
   border-radius: 50%;
   pointer-events: auto;
-  transform: translate(-50%, -50%) rotate(calc(-1 * var(--phase)));
-  animation: counterRevolve var(--period) linear infinite;
+  transform: translate(-50%, -50%);
 }
-.planet {
-  display: block;
-  width: var(--size);
-  height: var(--size);
-  border-radius: 50%;
-  position: relative;
-  background: var(--planet-color);
-  box-shadow:
-    inset -7px -3px 10px #000a,
-    inset 2px 2px 4px #ffffff30,
-    0 0 12px #b4c9db0d;
+.whitePlanet {
+  color: #fff;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 24px;
+  line-height: 1;
+  text-shadow:
+    0 0 5px #fff,
+    0 0 14px #fff,
+    0 0 28px #e5edffaa;
+  animation: breathe 4s ease-in-out infinite alternate;
 }
-.planet::before,
-.horizon::before {
+.planetButton .whitePlanet {
+  animation-delay: var(--delay);
+}
+.planetLabel {
+  position: absolute;
+  bottom: calc(100% + 35px);
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  color: #fff;
+  font-size: clamp(9px, 0.85vw, 12px);
+  font-weight: 500;
+  text-shadow:
+    0 2px 8px #000,
+    0 0 14px #000;
+}
+.orbit:nth-last-child(2) .planetLabel {
+  bottom: calc(100% + 65px);
+}
+.orbit:nth-last-child(2) .planetLabel::after {
+  height: 70px;
+}
+.planetLabel::after {
   content: "";
   position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background: repeating-linear-gradient(
-    155deg,
-    transparent 0 5px,
-    #ffffff26 6px 9px,
-    transparent 10px 15px,
-    #0002 16px 19px
-  );
-  background-size: 180% 100%;
-  animation: spinSurface 55s linear infinite;
+  top: calc(100% + 8px);
+  left: 50%;
+  width: 1px;
+  height: 40px;
+  background: linear-gradient(#ffffffaa, #ffffff55);
 }
-.earth {
-  background:
-    radial-gradient(ellipse at 35% 30%, #aac7b7 0 12%, transparent 15%),
-    radial-gradient(ellipse at 60% 60%, #588d75 0 20%, transparent 24%), #4c8cba;
-}
-.mars {
-  background:
-    radial-gradient(circle at 32% 38%, #e8ae89, transparent 30%), #a35e4c;
-}
-.venus {
-  background: linear-gradient(25deg, #b78353, #e8cea0, #b78b61);
-}
-.jupiter {
-  background: repeating-linear-gradient(
-    170deg,
-    #bea180 0 4px,
-    #d6c1a2 5px 8px,
-    #9c7059 9px 11px
-  );
-}
-.saturn::after {
-  content: "";
-  position: absolute;
-  inset: 25% -45%;
-  border: 4px solid #ccb78c88;
-  border-radius: 50%;
-  transform: rotate(-28deg);
-}
-.uranus {
-  background: linear-gradient(30deg, #609ba8, #b2d7d4);
-}
-.neptune {
-  background: linear-gradient(20deg, #364c89, #7c9bc9);
-}
-.mercury {
-  background:
-    radial-gradient(circle at 32% 40%, #686b70 0 12%, transparent 15%), #a6a49f;
+.planetButton:hover .whitePlanet,
+.planetButton:focus-visible .whitePlanet {
+  text-shadow:
+    0 0 10px #fff,
+    0 0 25px #fff,
+    0 0 45px #fff;
 }
 .horizon {
   position: absolute;
@@ -184,10 +225,18 @@
   bottom: -48%;
   left: -25%;
   border-radius: 50%;
+  background: radial-gradient(
+    ellipse at 50% 0%,
+    #d6dfed,
+    #68768d 30%,
+    #121c30 65%
+  );
   box-shadow:
-    0 -3px 20px var(--planet-color),
-    0 -22px 80px #8dbacb1c;
-  overflow: hidden;
+    0 -2px 18px #f4f7ff99,
+    0 -22px 80px #dce8ff22;
+}
+.horizon ~ .caption {
+  bottom: 22%;
 }
 .entryLayer {
   position: absolute;
@@ -296,27 +345,13 @@
   display: none;
 }
 @keyframes revolve {
-  from {
-    transform: rotate(var(--phase));
-  }
   to {
-    transform: rotate(calc(var(--phase) + 360deg));
+    transform: rotate(360deg);
   }
 }
-@keyframes counterRevolve {
-  from {
-    transform: translate(-50%, -50%) rotate(calc(-1 * var(--phase)));
-  }
+@keyframes followOrbit {
   to {
-    transform: translate(-50%, -50%) rotate(calc(-1 * var(--phase) - 360deg));
-  }
-}
-@keyframes spinSurface {
-  from {
-    background-position: 0 0;
-  }
-  to {
-    background-position: 180% 0;
+    offset-distance: 100%;
   }
 }
 @keyframes shimmer {
@@ -357,6 +392,22 @@
     opacity: 0;
   }
 }
+@container (max-width: 740px) {
+  .system {
+    min-width: 1000px;
+  }
+  .planetLabel {
+    font-size: 12px;
+  }
+}
+@media (max-width: 900px) {
+  .system {
+    min-width: 1000px;
+  }
+  .planetLabel {
+    font-size: 12px;
+  }
+}
 @media (max-width: 600px) {
   .controls {
     padding: 12px;
@@ -386,87 +437,4 @@
   .launch {
     display: none;
   }
-}
-
-/* Keep the close-up horizon soft, with room above it for the caption. */
-.horizon::before {
-  background:
-    radial-gradient(ellipse at 25% 35%, #ffffff40, transparent 35%),
-    radial-gradient(ellipse at 65% 60%, #00000050, transparent 45%);
-  background-size: 180% 100%;
-}
-.horizon ~ .caption {
-  bottom: 22%;
-}
-
-/* The personal system uses only white bodies and light, without planet icons. */
-.universe[data-private="true"] .sky {
-  background:
-    radial-gradient(ellipse at 50% 40%, #3c47642e, transparent 65%), #070c17;
-}
-.privateSystem::before {
-  content: "";
-  position: absolute;
-  inset: 12%;
-  border-radius: 50%;
-  background: radial-gradient(circle, #ffffff0c, transparent 65%);
-  box-shadow: 0 0 90px #dbe7ff0c;
-}
-.privateSystem .sun {
-  width: 22px;
-  height: 22px;
-  background: radial-gradient(circle at 35% 30%, #fff, #e6ebf8 58%, #929fb8);
-  box-shadow:
-    0 0 25px #ffffff55,
-    0 0 85px #e3ebff22;
-}
-.privateSystem .orbit {
-  border-color: #eef3ff22;
-}
-.whitePlanet {
-  background: radial-gradient(
-    circle at 30% 25%,
-    #fff,
-    #e9edf6 45%,
-    #a5afc1 78%,
-    #69768d
-  );
-  box-shadow:
-    inset -4px -2px 7px #1d2c4980,
-    0 0 12px #ffffff30;
-}
-.whitePlanet::before {
-  background: repeating-linear-gradient(
-    150deg,
-    transparent 0 4px,
-    #ffffff50 5px 7px,
-    transparent 8px 12px
-  );
-  background-size: 180% 100%;
-}
-.whiteHorizon {
-  background: radial-gradient(
-    ellipse at 50% 0%,
-    #c3cddd,
-    #68768d 30%,
-    #121c30 65%
-  );
-}
-.planetLabel {
-  position: absolute;
-  top: 100%;
-  left: 50%;
-  transform: translateX(-50%);
-  padding: 4px 8px;
-  border-radius: 10px;
-  white-space: nowrap;
-  background: #0c1225e8;
-  color: #fff;
-  font-size: 10px;
-  opacity: 0;
-  pointer-events: none;
-}
-.planetButton:hover .planetLabel,
-.planetButton:focus-visible .planetLabel {
-  opacity: 1;
 }
