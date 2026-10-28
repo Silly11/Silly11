@@ -72,7 +72,7 @@
   overflow: hidden;
 }
 .system {
-  --system-tilt: 130deg;
+  --system-tilt: 120deg;
   position: relative;
   width: 100%;
   min-width: 0;
@@ -151,10 +151,6 @@
   transform: translate(-50%, -50%);
   animation: followOrbit var(--period) linear infinite;
   transition: none;
-}
-.systemViewport:hover .planetButton,
-.system:focus-within .planetButton {
-  animation-play-state: paused;
 }
 .whitePlanet {
   color: #fff;

@@ -547,7 +547,7 @@ test("planet journals: white private system, isolated destinations, stars, motio
   });
 });
 
-test("moving planets open clear empty destinations with pointer and keyboard", async ({
+test("planets keep moving on hover and focus and open destinations with pointer and keyboard", async ({
   page,
 }) => {
   const errors: string[] = [];
@@ -595,6 +595,41 @@ test("moving planets open clear empty destinations with pointer and keyboard", a
       return points;
     }),
   );
+  // Hover and keyboard focus must not silently stop any orbital animation.
+  await map.hover();
+  for (const focusPlanet of [false, true]) {
+    if (focusPlanet) await planets.first().focus();
+    for (const planet of await planets.all()) {
+      await expect(planet).toHaveCSS("animation-play-state", "running");
+    }
+    const before = await planets.evaluateAll((buttons) =>
+      buttons.map((button) => {
+        const rect = button.getBoundingClientRect();
+        return {
+          time: Number(button.getAnimations()[0].currentTime),
+          x: rect.x,
+          y: rect.y,
+        };
+      }),
+    );
+    await expect
+      .poll(async () =>
+        planets.evaluateAll(
+          (buttons, start) =>
+            buttons.every((button, index) => {
+              const rect = button.getBoundingClientRect();
+              return (
+                Number(button.getAnimations()[0].currentTime) >
+                  start[index].time + 150 &&
+                Math.hypot(rect.x - start[index].x, rect.y - start[index].y) >
+                  0.5
+              );
+            }),
+          before,
+        ),
+      )
+      .toBe(true);
+  }
   for (const path of paths) {
     expect(path.every((point) => point.inside)).toBe(true);
     expect(
@@ -606,6 +641,19 @@ test("moving planets open clear empty destinations with pointer and keyboard", a
   }
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 1000 });
+    await map.scrollIntoViewIfNeeded();
+    const movingTarget = planets.first();
+    await expect(movingTarget).toHaveCSS("animation-play-state", "running");
+    const movingBounds = (await movingTarget.boundingBox())!;
+    await page.mouse.click(
+      movingBounds.x + movingBounds.width / 2,
+      movingBounds.y + movingBounds.height / 2,
+    );
+    await expect(
+      sky.getByRole("heading", { name: "Sao Thủy", exact: true }),
+    ).toBeVisible();
+    await sky.getByRole("button", { name: "← Về toàn cảnh" }).click();
+    await sky.getByRole("button", { name: "Tạm dừng chuyển động" }).click();
     for (const name of names) {
       const bounds = (await map.boundingBox())!;
       await page.mouse.move(bounds.x + 5, bounds.y + 5);
@@ -647,6 +695,7 @@ test("moving planets open clear empty destinations with pointer and keyboard", a
       }
       await sky.getByRole("button", { name: "← Về toàn cảnh" }).click();
     }
+    await sky.getByRole("button", { name: "Tiếp tục chuyển động" }).click();
   }
   await sky
     .getByRole("button", { name: "Dừng chân tại Trái Đất", exact: true })

@@ -214,7 +214,7 @@ export default function UniverseScene({
             </p>
             <small>
               {!planet
-                ? "Chạm một hành tinh hoặc chọn nơi dừng chân để mở. Di chuột lên bản đồ để dừng vòng quay."
+                ? "Chạm một hành tinh hoặc chọn nơi dừng chân để mở. Bấm Tạm dừng chuyển động nếu cần dừng vòng quay."
                 : planetEntries.length
                   ? `${planetEntries.length} tâm tư · Chạm vào ngôi sao trắng để mở`
                   : "Hành tinh đang đợi ngôi sao đầu tiên"}
