@@ -332,7 +332,7 @@ test("planet journals: white private system, isolated destinations, stars, motio
   await expect(privateSky.locator("svg ellipse")).toHaveCount(8);
   expect(
     await privateSky
-      .getByLabel("Bản đồ quỹ đạo, cuộn ngang để khám phá")
+      .getByLabel("Bản đồ hành tinh quay quanh Mặt Trời")
       .evaluate((element) => element.scrollWidth <= element.clientWidth),
   ).toBe(true);
   const planetLabels = privateSky.locator('[class*="planetLabel"]');
@@ -357,7 +357,7 @@ test("planet journals: white private system, isolated destinations, stars, motio
   await privateSky
     .getByRole("button", { name: "Tạm dừng chuyển động" })
     .click();
-  await expect(privateSky.locator('[class*="traveler"]').first()).toHaveCSS(
+  await expect(privateSky.locator('[class*="planetButton"]').first()).toHaveCSS(
     "animation-play-state",
     "paused",
   );
@@ -368,7 +368,7 @@ test("planet journals: white private system, isolated destinations, stars, motio
   await privateSky
     .getByRole("button", { name: "Tiếp tục chuyển động" })
     .click();
-  await expect(privateSky.locator('[class*="traveler"]').first()).toHaveCSS(
+  await expect(privateSky.locator('[class*="planetButton"]').first()).toHaveCSS(
     "animation-play-state",
     "running",
   );
@@ -379,16 +379,26 @@ test("planet journals: white private system, isolated destinations, stars, motio
     .getByRole("button", { name: "Dừng chân tại Trái Đất", exact: true })
     .click();
   await expect(privateSky.getByRole("button", { name: /Mở / })).toHaveCount(2);
+  await page
+    .locator(".filter-row")
+    .getByRole("button", { name: "Nỗi buồn", exact: true })
+    .click();
+  await page
+    .getByRole("textbox", { name: "Tìm tâm tư" })
+    .fill("không khớp nội dung nào");
+  await expect(privateSky.getByRole("button", { name: /Mở / })).toHaveCount(0);
   await privateSky
     .getByRole("combobox", { name: "Chọn hành tinh" })
     .selectOption("mars");
+  await expect(page.getByRole("textbox", { name: "Tìm tâm tư" })).toHaveValue(
+    "",
+  );
   await expect(privateSky.getByRole("button", { name: /Mở / })).toHaveCount(2);
   await privateSky.getByRole("button", { name: /Mở Lời gửi gió/ }).click();
   await expect(page.getByRole("dialog")).toContainText(
     "Lời gửi gió riêng Sao Hỏa",
   );
   await page.keyboard.press("Escape");
-  await page.locator(".entries-section > summary").click();
   await expect(page.locator(".entry-grid")).toContainText(
     "Ánh sao công khai Sao Hỏa",
   );
@@ -413,7 +423,7 @@ test("planet journals: white private system, isolated destinations, stars, motio
     fullPage: true,
   });
   await system.getByRole("button", { name: "Tạm dừng chuyển động" }).click();
-  const traveler = system.locator('[class*="traveler"]').first();
+  const traveler = system.locator('[class*="planetButton"]').first();
   await expect(traveler).toHaveCSS("animation-play-state", "paused");
   await system.getByRole("button", { name: "Tiếp tục chuyển động" }).click();
   await expect(traveler).toHaveCSS("animation-play-state", "running");
@@ -432,7 +442,6 @@ test("planet journals: white private system, isolated destinations, stars, motio
     .locator("span");
   await expect(journalStar).toHaveText("✦");
   await expect(journalStar).toHaveCSS("color", "rgb(255, 255, 255)");
-  await page.locator(".entries-section > summary").click();
   await expect(page.locator(".entry-grid")).toContainText(
     "Ánh sao công khai Trái Đất",
   );
@@ -520,13 +529,10 @@ test("planet journals: white private system, isolated destinations, stars, motio
     "animation-name",
     "none",
   );
-  const map = privateSky.getByLabel("Bản đồ quỹ đạo, cuộn ngang để khám phá");
+  const map = privateSky.getByLabel("Bản đồ hành tinh quay quanh Mặt Trời");
   expect(
-    await map.evaluate((element) => element.scrollWidth > element.clientWidth),
+    await map.evaluate((element) => element.scrollWidth <= element.clientWidth),
   ).toBe(true);
-  await map.evaluate((element) => {
-    element.scrollLeft = element.scrollWidth;
-  });
   await privateSky
     .getByRole("button", { name: "Dừng chân tại Sao Hải Vương", exact: true })
     .click();
@@ -539,4 +545,115 @@ test("planet journals: white private system, isolated destinations, stars, motio
     path: "test-results/universe-private-mobile.png",
     fullPage: true,
   });
+});
+
+test("moving planets open clear empty destinations with pointer and keyboard", async ({
+  page,
+}) => {
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto("/");
+  await expect(page.getByText("Đang mở thiên hà…")).toBeHidden();
+  const sky = page.getByRole("region", { name: "Bầu trời riêng" });
+  const map = sky.getByRole("group", {
+    name: "Bản đồ hành tinh quay quanh Mặt Trời",
+  });
+  const planets = sky.getByRole("button", { name: /Dừng chân tại/ });
+  const names = [
+    "Sao Thủy",
+    "Sao Kim",
+    "Trái Đất",
+    "Sao Hỏa",
+    "Sao Mộc",
+    "Sao Thổ",
+    "Sao Thiên Vương",
+    "Sao Hải Vương",
+  ];
+  await expect(planets).toHaveCount(8);
+  // Seek each real planet through a complete orbit: controls must move and stay on screen.
+  const paths = await planets.evaluateAll((buttons) =>
+    buttons.map((button) => {
+      const animation = button.getAnimations()[0];
+      const duration = Number(animation.effect!.getTiming().duration);
+      const originalTime = animation.currentTime;
+      const boundary = button.parentElement!.getBoundingClientRect();
+      const points = [0, 0.25, 0.5, 0.75, 1].map((phase) => {
+        animation.currentTime = duration * phase;
+        const rect = button.getBoundingClientRect();
+        return {
+          x: rect.x + rect.width / 2,
+          y: rect.y + rect.height / 2,
+          inside:
+            rect.left >= boundary.left &&
+            rect.right <= boundary.right &&
+            rect.top >= boundary.top &&
+            rect.bottom <= boundary.bottom,
+        };
+      });
+      animation.currentTime = originalTime;
+      return points;
+    }),
+  );
+  for (const path of paths) {
+    expect(path.every((point) => point.inside)).toBe(true);
+    expect(
+      Math.hypot(path[0].x - path[1].x, path[0].y - path[1].y),
+    ).toBeGreaterThan(10);
+    expect(
+      Math.hypot(path[0].x - path[4].x, path[0].y - path[4].y),
+    ).toBeLessThan(1);
+  }
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 1000 });
+    for (const name of names) {
+      const bounds = (await map.boundingBox())!;
+      await page.mouse.move(bounds.x + 5, bounds.y + 5);
+      const target = sky.getByRole("button", {
+        name: `Dừng chân tại ${name}`,
+        exact: true,
+      });
+      await expect(target).toHaveCSS("animation-play-state", "paused");
+      await target.click();
+      await expect(
+        sky.getByRole("heading", { name, exact: true }),
+      ).toBeVisible();
+      await expect(
+        sky.getByRole("heading", { name, exact: true }),
+      ).toBeFocused();
+      await expect(
+        sky.getByRole("heading", {
+          name: `Chưa có tâm tư hiển thị trên ${name}`,
+          exact: true,
+        }),
+      ).toBeVisible();
+      await expect(page.locator(".entries-section")).toHaveAttribute(
+        "open",
+        "",
+      );
+      if (width === 1440 && name === "Sao Thủy") {
+        await page.screenshot({
+          style: "nextjs-portal { display: none !important; }",
+          path: "test-results/universe-empty-planet.png",
+          fullPage: true,
+        });
+        await sky
+          .getByRole("button", { name: `Gửi tâm tư đến ${name}`, exact: true })
+          .click();
+        await expect(page.getByLabel("Gửi tâm tư đến hành tinh")).toHaveValue(
+          "mercury",
+        );
+        await page.keyboard.press("Escape");
+      }
+      await sky.getByRole("button", { name: "← Về toàn cảnh" }).click();
+    }
+  }
+  await sky
+    .getByRole("button", { name: "Dừng chân tại Trái Đất", exact: true })
+    .focus();
+  await page.keyboard.press("Enter");
+  await expect(
+    sky.getByRole("heading", { name: "Trái Đất", exact: true }),
+  ).toBeFocused();
+  expect(errors).toEqual([]);
 });

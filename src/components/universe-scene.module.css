@@ -1,3 +1,8 @@
+@property --orbit-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
 .universe {
   background: #080e1b;
   color: #c6c4d9;
@@ -12,6 +17,7 @@
 }
 .controls button,
 .legend button,
+.emptyDestination button,
 .picker select {
   border: 1px solid #b5b4d633;
   border-radius: 20px;
@@ -61,13 +67,9 @@
   animation: shimmer 5s ease-in-out infinite alternate;
 }
 .systemViewport {
-  container-type: inline-size;
   position: absolute;
   inset: 0 0 90px;
-  overflow-x: auto;
-  overflow-y: hidden;
-  scrollbar-width: thin;
-  scrollbar-color: #c9d5ee55 transparent;
+  overflow: hidden;
 }
 .system {
   position: relative;
@@ -89,11 +91,11 @@
 }
 .sun {
   position: absolute;
-  left: -80px;
-  top: 46%;
-  width: 140px;
-  height: 140px;
-  transform: translateY(-50%);
+  left: 50%;
+  top: 50%;
+  width: clamp(64px, 9vw, 100px);
+  height: clamp(64px, 9vw, 100px);
+  transform: translate(-50%, -50%);
   border-radius: 50%;
   background: radial-gradient(
     circle at 70% 40%,
@@ -127,21 +129,11 @@
   inset: 0;
   pointer-events: none;
 }
-.traveler {
-  position: absolute;
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-  background: #fff;
-  box-shadow: 0 0 9px 2px #ffffffaa;
-  offset-path: ellipse(var(--rx) var(--ry) at -8% 46%);
-  animation: followOrbit var(--period) linear infinite;
-  animation-delay: var(--delay);
-}
 .planetButton {
+  --orbit-angle: var(--phase);
   position: absolute;
-  top: 46%;
-  left: var(--destination);
+  top: calc(50% + var(--ry) * sin(var(--orbit-angle)));
+  left: calc(50% + var(--rx) * cos(var(--orbit-angle)));
   width: 44px;
   height: 44px;
   display: grid;
@@ -152,6 +144,12 @@
   border-radius: 50%;
   pointer-events: auto;
   transform: translate(-50%, -50%);
+  animation: followOrbit var(--period) linear infinite;
+  transition: none;
+}
+.system:hover .planetButton,
+.system:focus-within .planetButton {
+  animation-play-state: paused;
 }
 .whitePlanet {
   color: #fff;
@@ -163,9 +161,6 @@
     0 0 14px #fff,
     0 0 28px #e5edffaa;
   animation: breathe 4s ease-in-out infinite alternate;
-}
-.planetButton .whitePlanet {
-  animation-delay: var(--delay);
 }
 .planetLabel {
   display: none;
@@ -196,6 +191,42 @@
 }
 .horizon ~ .caption {
   bottom: 22%;
+}
+.destination {
+  padding: 4px 18px 16px;
+}
+.destination h2 {
+  margin: 0 0 6px;
+  color: #f2eefb;
+  font-size: 22px;
+}
+.destination p {
+  margin: 0;
+  font-size: 12px;
+}
+.emptyDestination {
+  position: absolute;
+  z-index: 1;
+  top: 24%;
+  left: 7%;
+  right: 7%;
+  padding: 24px 16px;
+  border: 1px solid #d5d1e433;
+  border-radius: 18px;
+  background: #0c1225e6;
+  text-align: center;
+}
+.emptyDestination > span {
+  color: #fff;
+  font-size: 32px;
+}
+.emptyDestination h3 {
+  font-size: 15px;
+  line-height: 1.6;
+}
+.emptyDestination p {
+  font-size: 12px;
+  line-height: 1.8;
 }
 .entryLayer {
   position: absolute;
@@ -309,8 +340,11 @@
   }
 }
 @keyframes followOrbit {
+  from {
+    --orbit-angle: var(--phase);
+  }
   to {
-    offset-distance: 100%;
+    --orbit-angle: calc(var(--phase) + 360deg);
   }
 }
 @keyframes shimmer {
@@ -349,16 +383,6 @@
     left: 72%;
     top: 16%;
     opacity: 0;
-  }
-}
-@container (max-width: 740px) {
-  .system {
-    min-width: 1000px;
-  }
-}
-@media (max-width: 900px) {
-  .system {
-    min-width: 1000px;
   }
 }
 @media (max-width: 600px) {

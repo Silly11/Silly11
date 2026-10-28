@@ -118,8 +118,6 @@ export default function CosmicApp() {
   const [personalPlanetId, setPersonalPlanetId] = useState<PlanetId | "">("");
   const [publicPlanetId, setPublicPlanetId] = useState<PlanetId | "">("");
   const selectedPlanetId = tab === "public" ? publicPlanetId : personalPlanetId;
-  const selectPlanet =
-    tab === "public" ? setPublicPlanetId : setPersonalPlanetId;
   const [modal, setModal] = useState<
     "compose" | "auth" | "premium" | "notices" | "letter" | null
   >(null);
@@ -166,6 +164,13 @@ export default function CosmicApp() {
         .toLowerCase()
         .includes(search.toLowerCase()),
   );
+
+  function selectPlanet(planetId: PlanetId | "") {
+    if (tab === "public") setPublicPlanetId(planetId);
+    else setPersonalPlanetId(planetId);
+    setFilter("all");
+    setSearch("");
+  }
 
   async function refresh() {
     try {
@@ -668,9 +673,10 @@ export default function CosmicApp() {
                     <details
                       key={`${tab}-${selectedPlanetId}`}
                       className="entries-section"
+                      open
                     >
                       <summary>
-                        Mở danh sách tâm tư ({visibleEntries.length})
+                        Danh sách tâm tư ({visibleEntries.length})
                       </summary>
                       <div className="section-title">
                         <h2>

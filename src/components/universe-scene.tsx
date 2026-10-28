@@ -1,11 +1,16 @@
 "use client";
 
-import { useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import type { Entry } from "@/lib/types";
 import { PLANETS, type PlanetId } from "@/lib/planets";
 import styles from "./universe-scene.module.css";
 
 const MOODS = { joy: "Niềm vui", sadness: "Nỗi buồn", unsaid: "Lời gửi gió" };
+const ORBITS = PLANETS.map((planet, index) => ({
+  ...planet,
+  rx: 156 + index * 50,
+  ry: 84 + index * 24,
+}));
 const BACKGROUND = Array.from({ length: 210 }, (_, i) => ({
   x: (i * 37.17 + 9) % 100,
   y: (i * 23.73 + 5) % 100,
@@ -39,10 +44,14 @@ export default function UniverseScene({
   launch: { sequence: number; public: boolean; planetId: PlanetId } | null;
 }) {
   const [paused, setPaused] = useState(false);
+  const destinationHeading = useRef<HTMLHeadingElement>(null);
   const planet = PLANETS.find((p) => p.id === planetId);
   const planetEntries = planet
     ? entries.filter((e) => e.planetId === planet.id)
     : [];
+  useEffect(() => {
+    if (planet) destinationHeading.current?.focus({ preventScroll: true });
+  }, [planet]);
   return (
     <section
       className={styles.universe}
@@ -73,6 +82,20 @@ export default function UniverseScene({
           {paused ? "Tiếp tục chuyển động" : "Tạm dừng chuyển động"}
         </button>
       </div>
+      {planet && (
+        <div className={styles.destination}>
+          <h2 ref={destinationHeading} tabIndex={-1}>
+            {planet.name}
+          </h2>
+          <p>
+            {shared
+              ? "Những tâm tư được sẻ chia"
+              : "Góc lưu giữ tâm tư của bạn"}
+            {" · "}
+            {planetEntries.length} tâm tư hiển thị
+          </p>
+        </div>
+      )}
       <div
         className={styles.sky}
         data-paused={paused}
@@ -99,8 +122,8 @@ export default function UniverseScene({
         {!planet && (
           <div
             className={styles.systemViewport}
-            tabIndex={0}
-            aria-label="Bản đồ quỹ đạo, cuộn ngang để khám phá"
+            role="group"
+            aria-label="Bản đồ hành tinh quay quanh Mặt Trời"
           >
             <div className={styles.system}>
               <svg
@@ -109,33 +132,25 @@ export default function UniverseScene({
                 preserveAspectRatio="none"
                 aria-hidden="true"
               >
-                {PLANETS.map((p, i) => (
-                  <ellipse
-                    key={p.id}
-                    cx="-96"
-                    cy="276"
-                    rx={288 + i * 128.4}
-                    ry={70 + i * 28}
-                  />
+                {ORBITS.map((p) => (
+                  <ellipse key={p.id} cx="600" cy="300" rx={p.rx} ry={p.ry} />
                 ))}
               </svg>
               <div className={styles.sun} aria-label="Mặt Trời" role="img" />
               <span className={styles.sunLabel}>Mặt Trời</span>
-              {PLANETS.map((p, i) => (
+              {ORBITS.map((p) => (
                 <div
                   key={p.id}
                   className={styles.orbit}
                   style={
                     {
-                      "--rx": `${24 + i * 10.7}%`,
-                      "--ry": `${(70 + i * 28) / 6}%`,
-                      "--destination": `${16 + i * 10.7}%`,
-                      "--period": `${p.period}s`,
-                      "--delay": `${-p.period * (i / 8)}s`,
+                      "--rx": `${p.rx / 12}%`,
+                      "--ry": `${p.ry / 6}%`,
+                      "--period": `${p.period / 3}s`,
+                      "--phase": `${p.phase}deg`,
                     } as CSSProperties
                   }
                 >
-                  <span className={styles.traveler} aria-hidden="true" />
                   <button
                     type="button"
                     className={styles.planetButton}
@@ -153,6 +168,16 @@ export default function UniverseScene({
           </div>
         )}
         {planet && <div aria-hidden="true" className={styles.horizon} />}
+        {planet && !planetEntries.length && (
+          <div className={styles.emptyDestination}>
+            <span aria-hidden="true">✦</span>
+            <h3>Chưa có tâm tư hiển thị trên {planet.name}</h3>
+            <p>Một dòng ngắn cũng có thể trở thành ngôi sao đầu tiên.</p>
+            <button type="button" onClick={onCompose}>
+              Gửi tâm tư đến {planet.name}
+            </button>
+          </div>
+        )}
 
         <div className={styles.entryLayer}>
           {planetEntries.map((entry) => (
@@ -178,22 +203,24 @@ export default function UniverseScene({
             }}
           />
         )}
-        <div className={styles.caption}>
-          <p>
-            {planet
-              ? `Một khoảng bình yên trên ${planet.name}`
-              : shared
-                ? "Chọn một hành tinh để tìm những vì sao sẻ chia."
-                : "Một hệ hành tinh trắng, cất giữ những điều chỉ thuộc về bạn."}
-          </p>
-          <small>
-            {!planet
-              ? "Tâm tư chỉ hiện khi bạn mở hành tinh đã gửi. Kéo ngang để khám phá quỹ đạo."
-              : planetEntries.length
-                ? `${planetEntries.length} tâm tư · Chạm vào ngôi sao trắng để mở`
-                : "Hành tinh đang đợi ngôi sao đầu tiên"}
-          </small>
-        </div>
+        {(!planet || planetEntries.length > 0) && (
+          <div className={styles.caption}>
+            <p>
+              {planet
+                ? `Một khoảng bình yên trên ${planet.name}`
+                : shared
+                  ? "Chọn một hành tinh để tìm những vì sao sẻ chia."
+                  : "Một hệ hành tinh trắng, cất giữ những điều chỉ thuộc về bạn."}
+            </p>
+            <small>
+              {!planet
+                ? "Chạm một hành tinh hoặc chọn nơi dừng chân để mở. Di chuột lên bản đồ để dừng vòng quay."
+                : planetEntries.length
+                  ? `${planetEntries.length} tâm tư · Chạm vào ngôi sao trắng để mở`
+                  : "Hành tinh đang đợi ngôi sao đầu tiên"}
+            </small>
+          </div>
+        )}
       </div>
       <div className={styles.legend}>
         {planet && (
