@@ -335,27 +335,11 @@ test("planet journals: white private system, isolated destinations, stars, motio
       .getByLabel("Bản đồ quỹ đạo, cuộn ngang để khám phá")
       .evaluate((element) => element.scrollWidth <= element.clientWidth),
   ).toBe(true);
-  await expect(privateSky.locator('[class*="planetLabel"]')).toHaveCount(8);
-  await expect(
-    privateSky.locator('[class*="planetLabel"]').last(),
-  ).toBeVisible();
+  const planetLabels = privateSky.locator('[class*="planetLabel"]');
+  await expect(planetLabels).toHaveCount(8);
+  for (const label of await planetLabels.all())
+    await expect(label).toBeHidden();
   await expect(privateSky.getByRole("img", { name: "Mặt Trời" })).toBeVisible();
-  const labels = await privateSky
-    .locator('[class*="planetLabel"]')
-    .evaluateAll((elements) =>
-      elements.map((element) => {
-        const { left, right, top, bottom } = element.getBoundingClientRect();
-        return { left, right, top, bottom };
-      }),
-    );
-  for (let i = 0; i < labels.length - 1; i++) {
-    const a = labels[i],
-      b = labels[i + 1];
-    expect(a.right <= b.left || a.bottom <= b.top || b.bottom <= a.top).toBe(
-      true,
-    );
-  }
-
   await expect(privateSky.getByRole("button", { name: /Mở / })).toHaveCount(0);
   await expect(page.locator(".entries-section")).toHaveCount(0);
   const privateBackground = privateSky.locator('[class*="distantStar"]');

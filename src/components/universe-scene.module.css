@@ -184,32 +184,7 @@
   animation-delay: var(--delay);
 }
 .planetLabel {
-  position: absolute;
-  bottom: calc(100% + 35px);
-  left: 50%;
-  transform: translateX(-50%);
-  white-space: nowrap;
-  color: #fff;
-  font-size: clamp(9px, 0.85vw, 12px);
-  font-weight: 500;
-  text-shadow:
-    0 2px 8px #000,
-    0 0 14px #000;
-}
-.orbit:nth-last-child(2) .planetLabel {
-  bottom: calc(100% + 65px);
-}
-.orbit:nth-last-child(2) .planetLabel::after {
-  height: 70px;
-}
-.planetLabel::after {
-  content: "";
-  position: absolute;
-  top: calc(100% + 8px);
-  left: 50%;
-  width: 1px;
-  height: 40px;
-  background: linear-gradient(#ffffffaa, #ffffff55);
+  display: none;
 }
 .planetButton:hover .whitePlanet,
 .planetButton:focus-visible .whitePlanet {
@@ -396,16 +371,10 @@
   .system {
     min-width: 1000px;
   }
-  .planetLabel {
-    font-size: 12px;
-  }
 }
 @media (max-width: 900px) {
   .system {
     min-width: 1000px;
-  }
-  .planetLabel {
-    font-size: 12px;
   }
 }
 @media (max-width: 600px) {
